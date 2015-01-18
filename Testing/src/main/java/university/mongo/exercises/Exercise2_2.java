@@ -24,6 +24,7 @@ public class Exercise2_2 {
 		DBCursor curQuiz = coll.find(new BasicDBObject("type","homework"))
 				           .sort(new BasicDBObject("student_id", -1).append("score", -1));
 		
+		
 		String prevStudentId = null;
 		DBObject prevRow = null;
 		
@@ -40,14 +41,19 @@ public class Exercise2_2 {
 				
 				System.out.println("GOING TO DELETE: " + curTmp.toString());
 				
-				WriteResult rs = coll.remove(new BasicDBObject("student_id",prevStudentId)
-				.append("homework", prevRow.get("score").toString()));
+				WriteResult rs = coll.remove(new BasicDBObject("_id",prevRow.get("_id")));
 				
 				System.out.println("Rows Affected: " + rs.getN());
 			}
 		    prevRow = row;
-		    prevStudentId = answer;
+		    prevStudentId = answer; 
 		}
+		
+		// Get rid of the last one
+		WriteResult rs = coll.remove(new BasicDBObject("_id",prevRow.get("_id")));
+		
+		System.out.println("Rows Affected: " + rs.getN());
+
 		
 		System.out.println("Remaining: " + coll.find().count());
 	}
