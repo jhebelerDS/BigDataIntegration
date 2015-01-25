@@ -3,6 +3,8 @@ package MavenPlay.Testing;
 import java.net.UnknownHostException;
 
 import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
 import com.mongodb.MongoClient;
 
 /**
@@ -16,12 +18,12 @@ public class App
         System.out.println( "Hello World! " );
 		MongoClient mongoClient = new MongoClient();
 		
-		// Clear the DB
-		mongoClient.dropDatabase("testDB");
+		DB db = mongoClient.getDB("students");
+		DBCollection coll = db.getCollection("grades");
 		
-		DB db = mongoClient.getDB("testDB");
+		DBCursor cur = coll.find();
 		
-		// coll = db.getCollection("testCollection");
-	//
+		System.out.println("Count: " + cur.count());
+	
     }
 }
