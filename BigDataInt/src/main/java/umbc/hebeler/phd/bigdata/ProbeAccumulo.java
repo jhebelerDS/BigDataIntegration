@@ -40,4 +40,9 @@ public class ProbeAccumulo implements Probe {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+	public boolean sameAs(Object first, Object second) {
+		// TODO Auto-generated method stub
+		return false;
+	}
 }
