@@ -1,14 +1,22 @@
 package umbc.hebeler.phd.bigdata;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 
+import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.Property;
+import com.hp.hpl.jena.rdf.model.Resource;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -16,6 +24,8 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
 public class ProbeMongoDB implements Probe {
+	String URI = "http://edu.umbc.hebeler.phd.probe/0415#";
+	String rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 
 	MongoClient mongoClient = null;
 	ArrayList<DBStructure> structures = new ArrayList<DBStructure>();
@@ -60,8 +70,9 @@ public class ProbeMongoDB implements Probe {
 					// MUST FIX THIS FOR A LONG
 					cursor.skip((int)skipRecords);
 					
+			  		DBStructure structure = new DBStructure(); 
+					
 					for(int j = 0; j<BATCHSIZE ; j++){
-			  			DBStructure structure = new DBStructure(); 
 						DBObject obj = cursor.next();
 					     // Step through DB objects
 						if (structuresTmp.size() == 0) {
@@ -86,6 +97,8 @@ public class ProbeMongoDB implements Probe {
 						  }
 					
 					}
+					// Copy structure into arraylist
+					structures.add(structure);
 				}
 			}
 		}
@@ -122,8 +135,63 @@ public class ProbeMongoDB implements Probe {
 			return different;	
 	}
 
-	public Model convert2RDF() {
-		// TODO Auto-generated method stub
+	public Model convert2RDF()  {
+		InputStream ontology = null;
+		// Examine structures and make 
+		Model m = ModelFactory.createOntologyModel();
+		
+		try {
+			ontology = new FileInputStream("resources/noSQLProbe.owl");
+		} catch (FileNotFoundException e) {
+			System.out.println("File Not Found");
+		}
+		
+		m.read(ontology,"TURTLE", null);
+
+		// Add statements
+		//Step through the arraylist converting as necessary
+		Resource currentDatabase = null;
+		Resource currentTable = null;
+		
+		for(DBStructure dbs:structures){
+			// Setup the database and assocated table
+			Resource database = m.createResource();
+			Resource table = m.createResource();
+			Literal databaseName = m.createLiteral(dbs.getDbName());
+			Literal tableName = m.createLiteral(dbs.getTableName());
+			// First see if database is new
+			Resource databaseObj = null;
+			if(!Objects.equals(currentDatabase, database)){
+				// Create database object
+				databaseObj = m.createResource(URI+  databaseName);
+				Property prot = m.createProperty(rdf, "type");
+				Resource databaseClass = m.getResource("http://edu.umbc.hebeler.phd.probe/0415#Database");
+				m.add(databaseObj, prot, databaseClass);
+			}
+			// Next see if table is new
+			if(!Objects.equals(currentTable, table)){
+				// Create table object
+				Resource databaseObj = m.createResource(URI+  tableName);
+				Property prot = m.createProperty(rdf, "type");
+				Resource databaseClass = m.getResource("http://edu.umbc.hebeler.phd.probe/0415#Table");
+				m.add(databaseObj, prot, databaseClass);
+				// Connect the table to the database
+			}
+			//  Now go through each record
+			for(Object d: dbs.getStructures()){
+			    DBObject dbo = (DBObject) d;
+				Map saveObjMap = dbo.toMap();
+				Set saveObjSet = saveObjMap.keySet();
+				Iterator saveObjIt = saveObjSet.iterator();
+				while(saveObjIt.hasNext()){
+					// Allocate one record structure for each element
+				}
+
+			}
+			
+		}
+		
+		
 		return null;
 	}
 
