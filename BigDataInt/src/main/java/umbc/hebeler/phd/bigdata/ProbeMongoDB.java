@@ -171,7 +171,7 @@ public class ProbeMongoDB implements Probe {
 			// Next see if table is new
 			if(!Objects.equals(currentTable, table)){
 				// Create table object
-				Resource databaseObj = m.createResource(URI+  tableName);
+				Resource databaseObj = m.createResource(URI+  tableName);  
 				Property prot = m.createProperty(rdf, "type");
 				Resource databaseClass = m.getResource("http://edu.umbc.hebeler.phd.probe/0415#Table");
 				m.add(databaseObj, prot, databaseClass);
