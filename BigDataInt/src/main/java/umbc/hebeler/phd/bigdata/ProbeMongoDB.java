@@ -17,6 +17,7 @@ import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
+import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -193,6 +194,38 @@ public class ProbeMongoDB implements Probe {
 		
 		
 		return null;
+	}
+
+	public boolean populate() {
+		
+	    mongoClient.dropDatabase("testDB");
+		
+		DB db = mongoClient.getDB("testDB");
+		
+		DBCollection coll = db.getCollection("testCollection");
+		
+		//  Populate DB
+		
+		for(int i = 0; i <1000 ; i++ ){
+			
+		   BasicDBObject doc = new BasicDBObject("name", "MongoDB" + i)
+		     .append("type", "database")
+		     .append("count", i)
+		     .append("info", new BasicDBObject("x", 203+i).append("y", 102+ i));
+		   coll.insert(doc);
+		}
+		
+		for(int i = 0; i <1000 ; i++ ){
+			
+			   BasicDBObject doc = new BasicDBObject("place", "fisbine" + i)
+			     .append("city", "trenton")
+			     .append("population", i+1000)
+			     .append("additional", new BasicDBObject("x1", 203+i).append("y1", 102+ i));
+			   coll.insert(doc);
+			}
+		
+		System.out.println("TOTAL RECORDS: " + coll.getCount());
+		return true;
 	}
 
 }

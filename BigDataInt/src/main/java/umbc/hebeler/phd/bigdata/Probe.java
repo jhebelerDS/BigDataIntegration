@@ -9,4 +9,5 @@ public interface Probe {
 	   public boolean extractStructures();
 	   public Model convert2RDF();
 	   public boolean sameAs (Object first, Object second);
+	   public boolean populate();
 }

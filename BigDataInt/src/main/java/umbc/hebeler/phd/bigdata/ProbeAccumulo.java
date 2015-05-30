@@ -45,4 +45,9 @@ public class ProbeAccumulo implements Probe {
 		// TODO Auto-generated method stub
 		return false;
 	}
+
+	public boolean populate() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 }
