@@ -28,6 +28,7 @@ public class DBStructure {
 	}
 	
 	public void add(Object o){
+		System.out.println("Adding Structure");
 		structures.add(o);
 	}
 

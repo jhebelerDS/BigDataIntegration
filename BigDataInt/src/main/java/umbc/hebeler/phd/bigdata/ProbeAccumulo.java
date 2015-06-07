@@ -31,9 +31,9 @@ public class ProbeAccumulo implements Probe {
 		return false;
 	}
 
-	public boolean extractStructures() {
+	public int extractStructures() {
 		// TODO Auto-generated method stub
-		return false;
+		return 1;
 	}
 
 	public Model convert2RDF() {

@@ -42,11 +42,11 @@ public class ProbeMongoDB implements Probe {
 		return true;
 	}
 
-	public boolean extractStructures() {
+	public int extractStructures() {
 		
 		List<String> databases = mongoClient.getDatabaseNames();
-		Random rand = null;
-		long skipRecords = 0L;
+		Random rand = new Random();
+		int skipRecords = 0;
 
 		// First look at each database
 		for(String databaseString:databases){
@@ -55,28 +55,36 @@ public class ProbeMongoDB implements Probe {
 			
 			//Now look at each collection (table)
 			for(String collectionString: collections){
-				ArrayList<DBObject> structuresTmp = new ArrayList<DBObject>();
 				// Open the collection and get the number of rows
 				DBCollection collection = database.getCollection(collectionString);
-				long numRecords = collection.count();
+				int numRecords = (int)collection.count();
+				// Need to test that the return fits into an int!!
+				
+				if(numRecords <=0 ) continue;
+				
 				// Calculate the number of samples and size
 				if( numRecords < BATCHSIZE){
 					// Exhaustive approach
+					System.out.println("Exhaustive missed : " + collectionString);
 				} else {
-					DBCursor cursor = collection.find();
-					cursor.batchSize(BATCHSIZE);
-					
-					// Get a number within the range of the collection
-					while((skipRecords = rand.nextLong() ) >= numRecords - BATCHSIZE);
-					// MUST FIX THIS FOR A LONG
-					cursor.skip((int)skipRecords);
+					System.out.println("Exhaustive matched : " + collectionString);
+
+					//DBCursor cursor = collection.find();
+					//cursor.batchSize(BATCHSIZE);
 					
 			  		DBStructure structure = new DBStructure(); 
 					
-					for(int j = 0; j<BATCHSIZE ; j++){
+					for(int j = 0; j<MAXSAMPLES  ; j++){
+						
+					   // Get a number within the range of the collection
+						DBCursor cursor = collection.find();
+				
+						skipRecords = rand.nextInt(numRecords-BATCHSIZE)  ;
+						cursor.skip(skipRecords);
+
 						DBObject obj = cursor.next();
 					     // Step through DB objects
-						if (structuresTmp.size() == 0) {
+						if (structure.getStructures().size() == 0) {
 						   	 // Set up the DBstructure
 							 structure.setDbName(databaseString);
 							 structure.setTableName(collectionString);
@@ -104,7 +112,7 @@ public class ProbeMongoDB implements Probe {
 			}
 		}
 
-		return false;
+		return structures.size();
 	}
 
 	public boolean sameAs(Object saveObj, Object obj) {
@@ -142,12 +150,17 @@ public class ProbeMongoDB implements Probe {
 		Model m = ModelFactory.createOntologyModel();
 		
 		try {
-			ontology = new FileInputStream("resources/noSQLProbe.owl");
+			// Get current working environment
+			final String dir = System.getProperty("user.dir");
+	        System.out.println("current dir = " + dir);
+			ontology = new FileInputStream("src/main/resources/noSQLProbe.rdf");
 		} catch (FileNotFoundException e) {
 			System.out.println("File Not Found");
+			return null;
 		}
 		
-		m.read(ontology,"TURTLE", null);
+		System.out.println("Reading NoSql Probe");
+		m.read(ontology,"RDF/XML");
 
 		// Add statements
 		//Step through the arraylist converting as necessary
@@ -162,6 +175,7 @@ public class ProbeMongoDB implements Probe {
 			Literal tableName = m.createLiteral(dbs.getTableName());
 			// First see if database is new
 			Resource databaseObj = null;
+			Resource endObj = null;
 			if(!Objects.equals(currentDatabase, database)){
 				// Create database object
 				databaseObj = m.createResource(URI+  databaseName);
@@ -185,15 +199,19 @@ public class ProbeMongoDB implements Probe {
 				Set saveObjSet = saveObjMap.keySet();
 				Iterator saveObjIt = saveObjSet.iterator();
 				while(saveObjIt.hasNext()){
-					// Allocate one record structure for each element
+					// Allocate one record structure for each element				databaseObj = m.createResource(URI+  tableName);  
+					endObj = m.createResource(URI+  saveObjIt.next().toString());  
+					Property prot = m.createProperty(rdf, "type");
+					Resource databaseClass = m.getResource("http://edu.umbc.hebeler.phd.probe/0415#Row");
+					m.add(endObj, prot, databaseClass);
+
 				}
 
 			}
 			
 		}
 		
-		
-		return null;
+		return m;
 	}
 
 	public boolean populate() {
