@@ -45,9 +45,6 @@ public class MongoDBClient {
 		ArrayList<DBObject> structures = new ArrayList<DBObject>();
 		ArrayList<DBObject> structuresTmp = new ArrayList<DBObject>();
 		
-		
-		
-		
 		for(int sampNum = 1 ; sampNum < MAXSAMPLES+1; sampNum++){
 			DBCursor cursor = coll.find();
 			cursor.batchSize(BATCHSIZE);

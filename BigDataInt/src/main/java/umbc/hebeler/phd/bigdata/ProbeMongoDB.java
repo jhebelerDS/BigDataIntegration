@@ -3,8 +3,11 @@ package umbc.hebeler.phd.bigdata;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +15,10 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 
+import com.hp.hpl.jena.ontology.DatatypeProperty;
+import com.hp.hpl.jena.ontology.ObjectProperty;
+import com.hp.hpl.jena.ontology.OntClass;
+import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
@@ -26,16 +33,30 @@ import com.mongodb.MongoClient;
 
 public class ProbeMongoDB implements Probe {
 	String URI = "http://edu.umbc.hebeler.phd.probe/0415#";
+	String URIdb = null;
 	String rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 
 	MongoClient mongoClient = null;
 	ArrayList<DBStructure> structures = new ArrayList<DBStructure>();
 
 
-	public boolean connect(String url, String user, String pw) {
+	public boolean connect(String urlRaw, String user, String pw) {
+		URL url = null;
+		
 		try {
 			// Just localhost for default
+			try {
+				url = new URL(urlRaw);
+				
+			} catch (MalformedURLException e) {
+				System.out.println("Poorly formed URL: " + urlRaw);
+			}
 			 mongoClient = new MongoClient();
+			 
+			 // Good enough for now but must consider getting the port number for multiple instances on same URL
+			 String port = (url.getPort() != -1)? ("/" + Long.toString(url.getPort())):"";
+			 URIdb = url.getProtocol()+ "://"+ url.getHost() + port + "/mongo#";
+			 
 		} catch (UnknownHostException e) {
 		 return false;
 		}
@@ -101,6 +122,9 @@ public class ProbeMongoDB implements Probe {
 							  }
 							   if(!same){
 								   structure.add(obj);
+								   // Here is where you need to save the structure of a document
+								   // Read one document and decompose it
+								   //obj.toMap();
 							   }
 					
 						  }
@@ -147,64 +171,119 @@ public class ProbeMongoDB implements Probe {
 	public Model convert2RDF()  {
 		InputStream ontology = null;
 		// Examine structures and make 
-		Model m = ModelFactory.createOntologyModel();
+		OntModel m = ModelFactory.createOntologyModel();
 		
-		try {
-			// Get current working environment
-			final String dir = System.getProperty("user.dir");
-	        System.out.println("current dir = " + dir);
-			ontology = new FileInputStream("src/main/resources/noSQLProbe.rdf");
-		} catch (FileNotFoundException e) {
-			System.out.println("File Not Found");
-			return null;
-		}
-		
-		System.out.println("Reading NoSql Probe");
-		m.read(ontology,"RDF/XML");
+//		try {
+//			// Get current working environment
+//			final String dir = System.getProperty("user.dir");
+//	        System.out.println("current dir = " + dir);
+//			ontology = new FileInputStream("src/main/resources/noSQLProbe.rdf");
+//		} catch (FileNotFoundException e) {
+//			System.out.println("File Not Found");
+//			return null;
+//		}
+//		
+//		System.out.println("Reading NoSql Probe");
+//		m.read(ontology,"RDF/XML");
 
 		// Add statements
 		//Step through the arraylist converting as necessary
-		Resource currentDatabase = null;
-		Resource currentTable = null;
+		String currentDatabase = null;
+		String database = null;
+		String currentTable = null;
+		String table = null;
+		
+		//Set up standard class references
+		// Database
+		OntClass databaseClass = m.createClass(URI+"Database");
+		// Table
+		OntClass tableClass = m.createClass(URI+"Table");
+		// Record
+		OntClass recordClass = m.createClass(URI+"Record");
+		//Instance Value
+		OntClass instanceClass = m.createClass(URI+"Instance");
+		
+		// Set up standard properties references
+		// hasDatabase
+		ObjectProperty hasDatabase = m.createObjectProperty(URI+"hasDatabase");
+		// hasTable
+		ObjectProperty hasTable = m.createObjectProperty(URI+"hasTable");
+		// hasRecord
+		ObjectProperty hasRecord = m.createObjectProperty(URI+ "hasRecord");
+		//hasInstance
+		ObjectProperty hasInstance =  m.createObjectProperty(URI + "hasInstance");
+		// hasName
+		DatatypeProperty hasName =  m.createDatatypeProperty(URI+ "hasName");
+		// hasValue
+		DatatypeProperty hasValue =  m.createDatatypeProperty(URI + "hasValue");
+		
+		Property isClass = m.createProperty(rdf, "type");
+		
+		
+		Resource databaseInstance = null;
+		Resource tableInstance = null;
+		Resource recordInstance = null;
 		
 		for(DBStructure dbs:structures){
-			// Setup the database and assocated table
-			Resource database = m.createResource();
-			Resource table = m.createResource();
-			Literal databaseName = m.createLiteral(dbs.getDbName());
-			Literal tableName = m.createLiteral(dbs.getTableName());
-			// First see if database is new
-			Resource databaseObj = null;
-			Resource endObj = null;
+			
+			currentDatabase = dbs.getDbName();
+			currentTable = dbs.getTableName();
+			System.out.println("CURRENT TABLE: " + currentTable);
+			
+			
+			// Set database object if new
 			if(!Objects.equals(currentDatabase, database)){
 				// Create database object
-				databaseObj = m.createResource(URI+  databaseName);
-				Property prot = m.createProperty(rdf, "type");
-				Resource databaseClass = m.getResource("http://edu.umbc.hebeler.phd.probe/0415#Database");
-				m.add(databaseObj, prot, databaseClass);
+				databaseInstance = m.createResource(URIdb+  currentDatabase);
+				m.add(databaseInstance, isClass, databaseClass);
+				// Set this up so we don't repeat above
+				database = currentDatabase;
 			}
+			
 			// Next see if table is new
 			if(!Objects.equals(currentTable, table)){
 				// Create table object
-				databaseObj = m.createResource(URI+  tableName);  
-				Property prot = m.createProperty(rdf, "type");
-				Resource databaseClass = m.getResource("http://edu.umbc.hebeler.phd.probe/0415#Table");
-				m.add(databaseObj, prot, databaseClass);
-				// Connect the table to the database
+				tableInstance = m.createResource(URIdb +  currentTable);  
+				m.add(tableInstance, isClass, tableClass);
+				table = currentTable;
+				// Associate with database
+				m.add(databaseInstance, hasTable, tableInstance);
+				
 			}
+			
 			//  Now go through each record
 			for(Object d: dbs.getStructures()){
 			    DBObject dbo = (DBObject) d;
 				Map saveObjMap = dbo.toMap();
 				Set saveObjSet = saveObjMap.keySet();
 				Iterator saveObjIt = saveObjSet.iterator();
+				Collection instances = saveObjMap.values();
+				Iterator instanceInterator = instances.iterator();
 				while(saveObjIt.hasNext()){
 					// Allocate one record structure for each element				databaseObj = m.createResource(URI+  tableName);  
-					endObj = m.createResource(URI+  saveObjIt.next().toString());  
-					Property prot = m.createProperty(rdf, "type");
-					Resource databaseClass = m.getResource("http://edu.umbc.hebeler.phd.probe/0415#Row");
-					m.add(endObj, prot, databaseClass);
-
+					recordInstance = m.createResource(URIdb+  saveObjIt.next().toString());  
+					//Resource databaseClass = m.getResource(URIdb);
+					m.add(recordInstance, isClass, recordClass);
+					// Connect each record to the specific table
+					m.add(tableInstance,hasRecord, recordInstance );
+					
+					// Add an instance
+					// Declare as an instance
+					String instanceV = instanceInterator.next().toString();
+					if(instanceV.contains("{") ){
+						instanceV = "UNPRINTABLE";
+						continue;
+					}
+					String instanceValueStr = URIdb + instanceV;
+					System.out.println("INSTANCE VALUE: " + instanceValueStr);
+					
+					//String instanceValueStr = "http://edu.umbc.hebeler.phd.probe/0415#" + "JUNK";
+					Resource instanceValue = m.createResource(instanceValueStr);
+					m.add(instanceValue, isClass, instanceClass);
+					
+					// add to record as an example
+					//m.add(instanceValue, pro, endObj);
+					m.add(recordInstance,hasInstance,  instanceValue);
 				}
 
 			}
@@ -241,6 +320,30 @@ public class ProbeMongoDB implements Probe {
 			     .append("additional", new BasicDBObject("x1", 203+i).append("y1", 102+ i));
 			   coll.insert(doc);
 			}
+		
+		
+		 coll = db.getCollection("PeopleTable");
+		
+		//  Populate DB
+		
+		for(int i = 0; i <1000 ; i++ ){
+			
+		   BasicDBObject doc = new BasicDBObject("PersonID", "Person" + i)
+		     .append("sex", ((i%4)==0)?"female":"male")
+		     .append("Age", i%80)
+		     .append("Location", new BasicDBObject("x", 203+i).append("y", 102+ i));
+		   coll.insert(doc);
+		}
+		
+//		for(int i = 0; i <1000 ; i++ ){
+//			
+//			   BasicDBObject doc = new BasicDBObject("place", "fisbine" + i)
+//			     .append("city", "trenton")
+//			     .append("population", i+1000)
+//			     .append("additional", new BasicDBObject("x1", 203+i).append("y1", 102+ i));
+//			   coll.insert(doc);
+//			}
+
 		
 		System.out.println("TOTAL RECORDS: " + coll.getCount());
 		return true;
