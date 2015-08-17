@@ -39,10 +39,18 @@ public class FusekiPlay {
 		
 	}
 			
-		
-        DatasetAccessor ds = DatasetAccessorFactory.createHTTP("http://localhost:3030/new/data");
-        ds.add(m);
-        
+		// CHoice to use or combing multiple datasets such as fish below or graph adds as in line 45
+        DatasetAccessor ds = DatasetAccessorFactory.createHTTP("http://localhost:3030/fish/data");
+        //ds.add(m);
+        ds.add("http://testds", m);
+        // Query with graph
+//        SELECT ?subject ?predicate ?object
+//        		WHERE {
+//        		GRAPH <http://testds>
+//        		  {?subject ?predicate ?object}
+//        		}
+//        		LIMIT 25
+//        
        
 		String id = UUID.randomUUID().toString();
         System.out.println(String.format("Adding %s", id));
