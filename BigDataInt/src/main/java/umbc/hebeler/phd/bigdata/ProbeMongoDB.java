@@ -15,15 +15,22 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 
+import org.apache.jena.riot.system.PrefixMap;
+import org.apache.jena.riot.system.PrefixMapFactory;
+
 import com.hp.hpl.jena.ontology.DatatypeProperty;
 import com.hp.hpl.jena.ontology.ObjectProperty;
 import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.ontology.OntModel;
+import com.hp.hpl.jena.ontology.OntModelSpec;
+import com.hp.hpl.jena.ontology.Ontology;
+import com.hp.hpl.jena.query.Dataset;
 import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.tdb.TDBFactory;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -32,7 +39,8 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
 public class ProbeMongoDB implements Probe {
-	String URI = "http://edu.umbc.hebeler.phd.probe/0415#";
+	String URIstructure = "http://edu.umbc.hebeler.phd.structure/0415#";
+	String URIdomain = "http://edu.umbc.hebeler.phd.domain/0915#";
 	String URIdb = null;
 	String rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 
@@ -168,24 +176,35 @@ public class ProbeMongoDB implements Probe {
 			return different;	
 	}
 
-	public Model convert2RDF()  {
+	public OntModel convert2RDF()  {
 		InputStream ontology = null;
 		// Examine structures and make 
 		OntModel m = ModelFactory.createOntologyModel();
+		//Resource on = m.createOntology("http://www.semanticweb.org/jhebeler/ontologies/2015/8/untitled-ontology-8");
 		
-//		try {
-//			// Get current working environment
-//			final String dir = System.getProperty("user.dir");
-//	        System.out.println("current dir = " + dir);
-//			ontology = new FileInputStream("src/main/resources/noSQLProbe.rdf");
-//		} catch (FileNotFoundException e) {
-//			System.out.println("File Not Found");
-//			return null;
-//		}
-//		
-//		System.out.println("Reading NoSql Probe");
-//		m.read(ontology,"RDF/XML");
+		//    <owl:Ontology rdf:about="http://www.semanticweb.org/jhebeler/ontologies/2015/8/untitled-ontology-8"/>
 
+		//Dataset ds = TDBFactory.createDataset("/Users/jhebeler/TDBStore2");
+		PrefixMap pm = PrefixMapFactory.create();
+		
+		
+		
+        //Model specificModelStore = ds.getNamedModel("mongo12");
+        
+		
+		try {
+			// Get current working environment
+			final String dir = System.getProperty("user.dir");
+	        System.out.println("current dir = " + dir);
+			ontology = new FileInputStream("foundation.owl");
+		} catch (FileNotFoundException e) {
+			System.out.println("File Not Found");
+			return null;
+		}
+		
+		System.out.println("Reading Foundation");
+		m.read(ontology,"RDF/XML");
+  
 		// Add statements
 		//Step through the arraylist converting as necessary
 		String currentDatabase = null;
@@ -195,34 +214,49 @@ public class ProbeMongoDB implements Probe {
 		
 		//Set up standard class references
 		// Database
-		OntClass databaseClass = m.createClass(URI+"Database");
+		
+		OntClass databaseClass = m.createClass(URIstructure+"Database");
+		OntClass domainClass = m.createClass(URIdomain+"Domain");
+
 		// Table
-		OntClass tableClass = m.createClass(URI+"Table");
+		OntClass tableClass = m.createClass(URIstructure+"Table");
 		// Record
-		OntClass recordClass = m.createClass(URI+"Record");
+		OntClass recordClass = m.createClass(URIstructure+"Record");
 		//Instance Value
-		OntClass instanceClass = m.createClass(URI+"Instance");
+		OntClass instanceClass = m.createClass(URIstructure+"Instance");
+		
 		
 		// Set up standard properties references
 		// hasDatabase
-		ObjectProperty hasDatabase = m.createObjectProperty(URI+"hasDatabase");
+		ObjectProperty hasDatabase = m.createObjectProperty(URIstructure+"hasDatabase");
 		// hasTable
-		ObjectProperty hasTable = m.createObjectProperty(URI+"hasTable");
+		ObjectProperty hasTable = m.createObjectProperty(URIstructure+"hasTable");
 		// hasRecord
-		ObjectProperty hasRecord = m.createObjectProperty(URI+ "hasRecord");
+		ObjectProperty hasRecord = m.createObjectProperty(URIstructure+ "hasRecord");
 		//hasInstance
-		ObjectProperty hasInstance =  m.createObjectProperty(URI + "hasInstance");
+		ObjectProperty hasInstance =  m.createObjectProperty(URIstructure + "hasInstance");
+		ObjectProperty hasMember = m.createObjectProperty(URIdomain + "hasMember");
 		// hasName
-		DatatypeProperty hasName =  m.createDatatypeProperty(URI+ "hasName");
+		DatatypeProperty hasName =  m.createDatatypeProperty(URIstructure+ "hasName");
 		// hasValue
-		DatatypeProperty hasValue =  m.createDatatypeProperty(URI + "hasValue");
+		DatatypeProperty hasValue =  m.createDatatypeProperty(URIstructure + "hasValue");
 		
-		Property isClass = m.createProperty(rdf, "type");
+//		m.cr
+//		
+		Property isType = m.createProperty(rdf, "type");
+//		Property isAbout = m.createProperty("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "about");
+//		Resource ont = m.createResource("http://www.w3.org/2002/07/owl#Ontology");
+//		
+//		Ontology o = m.getOntology(uri);
+//		o.
+//		
+//		m.add(ont, isAbout, on);
 		
 		
 		Resource databaseInstance = null;
 		Resource tableInstance = null;
 		Resource recordInstance = null;
+		Resource domainInstance = null;
 		
 		for(DBStructure dbs:structures){
 			
@@ -235,7 +269,7 @@ public class ProbeMongoDB implements Probe {
 			if(!Objects.equals(currentDatabase, database)){
 				// Create database object
 				databaseInstance = m.createResource(URIdb+  currentDatabase);
-				m.add(databaseInstance, isClass, databaseClass);
+				m.add(databaseInstance, isType, databaseClass);
 				// Set this up so we don't repeat above
 				database = currentDatabase;
 			}
@@ -244,12 +278,18 @@ public class ProbeMongoDB implements Probe {
 			if(!Objects.equals(currentTable, table)){
 				// Create table object
 				tableInstance = m.createResource(URIdb +  currentTable);  
-				m.add(tableInstance, isClass, tableClass);
+				m.add(tableInstance, isType, tableClass);
 				table = currentTable;
 				// Associate with database
 				m.add(databaseInstance, hasTable, tableInstance);
 				
+				// Also set the table up as a class with instances for each row
+				domainInstance = m.createResource(URIdomain + currentTable);
+				m.add(domainInstance, isType, domainClass);
+			
+				
 			}
+			
 			
 			//  Now go through each record
 			for(Object d: dbs.getStructures()){
@@ -263,9 +303,12 @@ public class ProbeMongoDB implements Probe {
 					// Allocate one record structure for each element				databaseObj = m.createResource(URI+  tableName);  
 					recordInstance = m.createResource(URIdb+  saveObjIt.next().toString());  
 					//Resource databaseClass = m.getResource(URIdb);
-					m.add(recordInstance, isClass, recordClass);
+					m.add(recordInstance, isType, recordClass);
+					m.add(domainInstance, hasMember, recordInstance);
 					// Connect each record to the specific table
 					m.add(tableInstance,hasRecord, recordInstance );
+					// Connect each record to the specific domain
+					//m.add(recordInstance, isType, domainClass);
 					
 					// Add an instance
 					// Declare as an instance
@@ -278,18 +321,24 @@ public class ProbeMongoDB implements Probe {
 					System.out.println("INSTANCE VALUE: " + instanceValueStr);
 					
 					//String instanceValueStr = "http://edu.umbc.hebeler.phd.probe/0415#" + "JUNK";
+					// NEED TO CREATE UNIQUE String relative to this table and 
+					// Then Set Value as a data property so that it can contain anything.
 					Resource instanceValue = m.createResource(instanceValueStr);
-					m.add(instanceValue, isClass, instanceClass);
+					m.add(instanceValue, isType, instanceClass);
+					m.add(instanceValue, hasMember, recordInstance);
 					
 					// add to record as an example
 					//m.add(instanceValue, pro, endObj);
 					m.add(recordInstance,hasInstance,  instanceValue);
+					//m.add(record)
+					//m.add(instanceValue, hasInstance, )
 				}
 
 			}
 			
 		}
-		
+		// Add to overall model
+		//specificModelStore.add(m);
 		return m;
 	}
 
