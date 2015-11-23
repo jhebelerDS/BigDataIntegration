@@ -7,6 +7,14 @@ import com.mongodb.DBObject;
 public class DBStructure {
 	private String dbName = null;
 	private String tableName = null;
+	private long rowCount = 0;
+	public long getRowCount() {
+		return rowCount;
+	}
+	public void setRowCount(long rowCount) {
+		this.rowCount = rowCount;
+	}
+
 	private ArrayList<Object> structures = new ArrayList<Object>();
 	public String getDbName() {
 		return dbName;

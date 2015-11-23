@@ -102,6 +102,7 @@ public class ProbeMongoDB implements Probe {
 					//cursor.batchSize(BATCHSIZE);
 					
 			  		DBStructure structure = new DBStructure(); 
+			  		structure.setRowCount(numRecords);
 					
 					for(int j = 0; j<MAXSAMPLES  ; j++){
 						
@@ -224,6 +225,7 @@ public class ProbeMongoDB implements Probe {
 		OntClass recordClass = m.createClass(URIstructure+"Record");
 		//Instance Value
 		OntClass instanceClass = m.createClass(URIstructure+"Instance");
+		OntClass counter = m.createClass(URIstructure +"Count");
 		
 		
 		// Set up standard properties references
@@ -236,6 +238,7 @@ public class ProbeMongoDB implements Probe {
 		//hasInstance
 		ObjectProperty hasInstance =  m.createObjectProperty(URIstructure + "hasInstance");
 		ObjectProperty hasMember = m.createObjectProperty(URIdomain + "hasMember");
+		ObjectProperty hasCounter = m.createObjectProperty(URIdomain + "hasCounter");
 		// hasName
 		DatatypeProperty hasName =  m.createDatatypeProperty(URIstructure+ "hasName");
 		// hasValue
@@ -282,12 +285,15 @@ public class ProbeMongoDB implements Probe {
 				table = currentTable;
 				// Associate with database
 				m.add(databaseInstance, hasTable, tableInstance);
-				
+				Resource counterInstance = m.createResource(URIdb + currentTable+ "counter");
+				m.add(counterInstance, isType, counter);
+				m.add(counterInstance, hasValue, Long.toString(dbs.getRowCount()));
+				m.add(tableInstance, hasCounter, counterInstance);
+	
 				// Also set the table up as a class with instances for each row
 				domainInstance = m.createResource(URIdomain + currentTable);
 				m.add(domainInstance, isType, domainClass);
 			
-				
 			}
 			
 			
@@ -317,7 +323,7 @@ public class ProbeMongoDB implements Probe {
 						instanceV = "UNPRINTABLE";
 						continue;
 					}
-					String instanceValueStr = URIdb + instanceV;
+					String instanceValueStr = instanceV;
 					System.out.println("INSTANCE VALUE: " + instanceValueStr);
 					
 					//String instanceValueStr = "http://edu.umbc.hebeler.phd.probe/0415#" + "JUNK";
