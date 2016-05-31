@@ -18,6 +18,8 @@ import java.util.Set;
 import org.apache.jena.riot.system.PrefixMap;
 import org.apache.jena.riot.system.PrefixMapFactory;
 
+import umbc.hebeler.phd.bigdata.DBStructure.DatabaseType;
+
 import com.hp.hpl.jena.ontology.DatatypeProperty;
 import com.hp.hpl.jena.ontology.ObjectProperty;
 import com.hp.hpl.jena.ontology.OntClass;
@@ -31,6 +33,7 @@ import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.tdb.TDBFactory;
+import com.hp.hpl.jena.vocabulary.RDFS;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -39,30 +42,38 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
 public class ProbeMongoDB implements Probe {
-	String URIstructure = "http://edu.umbc.hebeler.phd.structure/0415#";
-	String URIdomain = "http://edu.umbc.hebeler.phd.domain/0915#";
-	String URIdb = null;
-	String rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+	private String URIstructure = "http://edu.umbc.hebeler.phd.structure/0415#";
+	private String URIdomain = "http://edu.umbc.hebeler.phd.domain/0915#";
+	private String URIdb = null;
+	private String rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 
 	MongoClient mongoClient = null;
 	ArrayList<DBStructure> structures = new ArrayList<DBStructure>();
+	String hostName = null;
+	int port = 27017;
+	String user = null;
+	String password = null;
 
 
-	public boolean connect(String urlRaw, String user, String pw) {
+	public boolean connect(String host, int port, String user, String pw) {
 		URL url = null;
+		this.user = user;
+		this.password = pw;
+		this.port = port;
+		this.hostName = host;
 		
 		try {
 			// Just localhost for default
 			try {
-				url = new URL(urlRaw);
+				url = new URL("http://" + host);
 				
 			} catch (MalformedURLException e) {
-				System.out.println("Poorly formed URL: " + urlRaw);
+				System.out.println("Poorly formed URL: " + host);
 			}
-			 mongoClient = new MongoClient();
+			 mongoClient = new MongoClient(host, port);
 			 
 			 // Good enough for now but must consider getting the port number for multiple instances on same URL
-			 String port = (url.getPort() != -1)? ("/" + Long.toString(url.getPort())):"";
+			// String port = (url.getPort() != -1)? ("/" + Long.toString(url.getPort())):"";
 			 URIdb = url.getProtocol()+ "://"+ url.getHost() + port + "/mongo#";
 			 
 		} catch (UnknownHostException e) {
@@ -76,6 +87,8 @@ public class ProbeMongoDB implements Probe {
 		List<String> databases = mongoClient.getDatabaseNames();
 		Random rand = new Random();
 		int skipRecords = 0;
+		int maxSamples = MAXSAMPLES;
+		int batchSize = BATCHSIZE;
 
 		// First look at each database
 		for(String databaseString:databases){
@@ -95,22 +108,30 @@ public class ProbeMongoDB implements Probe {
 				if( numRecords < BATCHSIZE){
 					// Exhaustive approach
 					System.out.println("Exhaustive missed : " + collectionString);
+					maxSamples = 1;
 				} else {
 					System.out.println("Exhaustive matched : " + collectionString);
-
+				}
 					//DBCursor cursor = collection.find();
 					//cursor.batchSize(BATCHSIZE);
 					
 			  		DBStructure structure = new DBStructure(); 
 			  		structure.setRowCount(numRecords);
+			  		structure.setPortNumber(port);
+			  		structure.setHostName(hostName);
+			  		structure.setUserName(user);
+			  		structure.setPassword(password);
+			  		structure.setDatabaseType(DatabaseType.mongo);
 					
-					for(int j = 0; j<MAXSAMPLES  ; j++){
+					for(int j = 0; j<maxSamples  ; j++){
 						
 					   // Get a number within the range of the collection
 						DBCursor cursor = collection.find();
-				
-						skipRecords = rand.nextInt(numRecords-BATCHSIZE)  ;
-						cursor.skip(skipRecords);
+				        
+						if(maxSamples == MAXSAMPLES){
+							skipRecords = rand.nextInt(numRecords-batchSize)  ;
+							cursor.skip(skipRecords);
+						}
 
 						DBObject obj = cursor.next();
 					     // Step through DB objects
@@ -141,7 +162,7 @@ public class ProbeMongoDB implements Probe {
 					}
 					// Copy structure into arraylist
 					structures.add(structure);
-				}
+				//}
 			}
 		}
 
@@ -225,6 +246,7 @@ public class ProbeMongoDB implements Probe {
 		OntClass recordClass = m.createClass(URIstructure+"Record");
 		//Instance Value
 		OntClass instanceClass = m.createClass(URIstructure+"Instance");
+		
 		OntClass counter = m.createClass(URIstructure +"Count");
 		
 		
@@ -238,11 +260,16 @@ public class ProbeMongoDB implements Probe {
 		//hasInstance
 		ObjectProperty hasInstance =  m.createObjectProperty(URIstructure + "hasInstance");
 		ObjectProperty hasMember = m.createObjectProperty(URIdomain + "hasMember");
-		ObjectProperty hasCounter = m.createObjectProperty(URIdomain + "hasCounter");
+		DatatypeProperty hasCount = m.createDatatypeProperty(URIdomain + "hasCount");
 		// hasName
 		DatatypeProperty hasName =  m.createDatatypeProperty(URIstructure+ "hasName");
 		// hasValue
 		DatatypeProperty hasValue =  m.createDatatypeProperty(URIstructure + "hasValue");
+		DatatypeProperty hasHost =  m.createDatatypeProperty(URIstructure + "hasHost");
+		DatatypeProperty hasUser =  m.createDatatypeProperty(URIstructure + "hasUser");
+		DatatypeProperty hasPassword =  m.createDatatypeProperty(URIstructure + "hasPassword");
+		DatatypeProperty hasPort =  m.createDatatypeProperty(URIstructure + "hasPort");
+		DatatypeProperty hasDBType = m.createDatatypeProperty(URIstructure + "hasDBType");
 		
 //		m.cr
 //		
@@ -288,7 +315,12 @@ public class ProbeMongoDB implements Probe {
 				Resource counterInstance = m.createResource(URIdb + currentTable+ "counter");
 				m.add(counterInstance, isType, counter);
 				m.add(counterInstance, hasValue, Long.toString(dbs.getRowCount()));
-				m.add(tableInstance, hasCounter, counterInstance);
+				m.add(tableInstance, hasHost, dbs.getHostName());
+				m.add(tableInstance, hasPort, Integer.toString(dbs.getPortNumber()));
+				m.add(tableInstance, hasUser, dbs.getUserName());
+				m.add(tableInstance, hasPassword, dbs.getPassword());
+				m.add(tableInstance, hasDBType, dbs.getDatabaseType().toString());
+				m.add(tableInstance, hasCount, Long.toString(dbs.getRowCount()));
 	
 				// Also set the table up as a class with instances for each row
 				domainInstance = m.createResource(URIdomain + currentTable);
@@ -310,38 +342,53 @@ public class ProbeMongoDB implements Probe {
 					recordInstance = m.createResource(URIdb+  saveObjIt.next().toString());  
 					//Resource databaseClass = m.getResource(URIdb);
 					m.add(recordInstance, isType, recordClass);
-					m.add(domainInstance, hasMember, recordInstance);
+					//m.add(recordInstance, isType, domainInstance);
 					// Connect each record to the specific table
 					m.add(tableInstance,hasRecord, recordInstance );
 					// Connect each record to the specific domain
-					//m.add(recordInstance, isType, domainClass);
+					m.add(recordInstance, isType, domainClass);
+					m.add(domainInstance, hasMember, recordInstance);
 					
 					// Add an instance
 					// Declare as an instance
-					String instanceV = instanceInterator.next().toString();
+					String instanceV = null;
+					try{
+					instanceV = instanceInterator.next().toString();
+					}
+					catch (Exception e){
+						instanceV = "Unprintable";
+					}
 					if(instanceV.contains("{") ){
 						instanceV = "UNPRINTABLE";
 						continue;
 					}
 					String instanceValueStr = instanceV;
 					System.out.println("INSTANCE VALUE: " + instanceValueStr);
-					
-					//String instanceValueStr = "http://edu.umbc.hebeler.phd.probe/0415#" + "JUNK";
-					// NEED TO CREATE UNIQUE String relative to this table and 
-					// Then Set Value as a data property so that it can contain anything.
-					Resource instanceValue = m.createResource(instanceValueStr);
-					m.add(instanceValue, isType, instanceClass);
-					m.add(instanceValue, hasMember, recordInstance);
-					
-					// add to record as an example
-					//m.add(instanceValue, pro, endObj);
-					m.add(recordInstance,hasInstance,  instanceValue);
-					//m.add(record)
-					//m.add(instanceValue, hasInstance, )
+					m.add(recordInstance, hasValue, instanceV);
+//					if(instanceValueStr.contains("[") ){
+//						//instanceValueStr = "\"" + instanceValueStr + "\"";
+//						instanceValueStr.replace("[", "<");
+//						instanceValueStr.replace("]", ">");
+//						instanceValueStr.replace(" ",".");
+//						System.out.println("Skipping: " + instanceValueStr);
+//						continue;
+//					}
+//					
+//					//String instanceValueStr = "http://edu.umbc.hebeler.phd.probe/0415#" + "JUNK";
+//					// NEED TO CREATE UNIQUE String relative to this table and 
+//					// Then Set Value as a data property so that it can contain anything.
+//				
+//					Resource instanceValue = m.createResource(instanceValueStr);
+//					m.add(instanceValue, isType, instanceClass);
+//					m.add(instanceValue, hasMember, recordInstance);
+//					
+//					// add to record as an example
+//					//m.add(instanceValue, pro, endObj);
+//					m.add(recordInstance,hasInstance,  instanceValue);
+//					//m.add(record)
+//					//m.add(instanceValue, hasInstance, )
 				}
-
-			}
-			
+ 			}
 		}
 		// Add to overall model
 		//specificModelStore.add(m);
